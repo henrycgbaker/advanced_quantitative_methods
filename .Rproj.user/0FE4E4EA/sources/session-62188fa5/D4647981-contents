@@ -1,0 +1,455 @@
+---
+title: "Take_home_finn_krüger"
+author: "Finn_Krüger - 204259"
+date: "2023-11-09"
+output: 
+  html_document:
+    toc: TRUE
+    df_print: paged
+    number_sections: FALSE
+    highlight: tango
+    theme: lumen
+    toc_depth: 3
+    toc_float: true
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Part 1
+
+### 9.14) 
+
+a) y = -4.63 + 0.42x. The slope means if the percentage of population that holds at least a high school increases by 1, the median income increases by 420 dollars. 
+
+b) the difference is 10*0.42 = 4.2 = 4200 dollar more in median income 
+
+c) coefficient * SDX/SDY = correlation =  0.7934328. There is a strong positive correlation ( which can range from -1 to 1) between the percentage of citizens that have at least a high school degree and the the median income of any county in florida. The correlation equals to the the standardized slope. A one standard deviation shift in the percentage of residents with at least a high school education predicts an increase of 0.79 standard deviations in median income. This standardized property, along with the independence from the scales and units of the variables, facilitates the comparison of the strength of the relationship with that of other variables.
+```{r cars}
+correlation <- 0.42 * 8.86/4.69
+print(correlation)
+```
+
+
+
+d) 0.6295357. 62.95 percent of the variance of median income can be explained by the percentage of residents with at least a high school education. 
+
+```{r}
+r_squared <- correlation * correlation
+print(r_squared)
+
+
+```
+
+
+
+### 9.58)
+
+a) True
+b) False
+c) True
+d) True
+e) False
+f) true 
+g) true
+h) true 
+i) False 
+j) True
+k) False 
+
+
+### 10.44 
+Only a is true. 
+
+
+### 11.25 
+
+a) 
+
+```{r}
+# Given data
+TSS <- 2411.393
+SSE <- 585.424
+df_residual <- 20
+s <- 5.410
+s_y <- 10.469
+s_e_b1 <- 0.0640
+b1 <- -0.171
+
+MSE <- SSE / df_residual
+
+
+# Print the results
+cat("r_yx1:", -0.61181, "\n")
+cat("r_yx2:", -0.81872, "\n")
+cat("R^2:", 0.7572, "\n")
+cat("TSS:", TSS, "\n")
+cat("SSE:", SSE, "\n")
+cat("Mean Square Error:", MSE, "\n")
+cat("s:", s, "\n")
+cat("s_y:", s_y, "\n")
+cat("s_e for b1:", s_e_b1, "\n")
+cat("t for H0: β1 = 0:", -2.676, "\n")
+cat("P for H0: β1 ≠ 0:", 0.0145, "\n")
+cat("P for H0: β1 < 0:", 0.00725, "\n")
+cat("F for H0: β1 = β2 = 0:", 31.191, "\n")
+cat("P for H0: β1 = β2 = 0:",  0.0001, "\n")
+
+```
+b)  The prediction equation for the regression model is 
+BIRTHS = 61.713 − 0.171 × ECON − 0.404 × LITERACY
+The negative signs of the coefficients for ECON and LITERACY suggest that, holding other factors constant, an increase in women's economic activity and literacy rate is associated with a decrease in the birth rate.
+
+c)  The correlation r yx1 =−0.61181 indicates a moderate negative linear relationship between birth rate and women's economic activity, implying that as the percentage of women's economic activity increases, the birth rate tends to decrease. The stronger correlation ryx2 = −0.81872 between birth rate and literacy rate suggests a more substantial negative association, indicating that higher literacy rates are strongly linked to lower birth rates across the observed nations.
+
+d) The r squared of  0.7572 indicates that approximately 75.72% of the variation in birth rates can be explained through the predictor variables women's economic activity and literacy rate.
+
+e) The multiple correlation coefficient is a measure that quantifies the strength and direction of the linear relationship between a dependent variable and multiple independent variables in a regression model.In this case it shows how well the predicted birth rates are connected to two factors: "woman's economic activity" and "literacy rate." It's expected to be negative because both the connections between each factor and the birth rate are also negative. The value being close to 1 (or -1) suggests a strong and clear negative relationship between these two factors and the birth rate.
+
+```{r}
+multiple_correlation_1 <- sqrt(0.7572)
+print(multiple_correlation_1)
+```
+
+f) The F-statistic for testing the hypothesis  H0: β1 = β2 = 0 is given as 
+31.191 with a corresponding p-value of 0.0001. This indicates that at least one of the coefficients for women's economic activity or literacy rate is significantly different from zero, suggesting that the overall regression model is statistically significant in explaining the variability in birth rates.
+
+g) t =  b1 / se (b1) = −0.171 / 0.0640  = -2.676 - The p value for H0 is 0.0145  and it tells that its 1.45 percent likely that b1 is actually 0 based on the observered data. Equally Ha is equal to 1-0.0145 = 0.9855 = 98.55 % which shows that we can be  98.55 % confident that the true value of b1 is not equal to 0 based on the observed data. 
+
+
+
+
+### 11.26
+
+
+```{r}
+r_yx1 <- -0.61181
+r_yx2 <- -0.81872
+r_x1x2 <- 0.42056
+
+# Calculate partial correlation
+partial_correlation <- (r_yx1 - r_yx2 * r_x1x2) / sqrt((1 - r_yx2^2) * (1 - r_x1x2^2))
+
+# Print the result
+print(partial_correlation)
+
+r_square_partial <- partial_correlation*partial_correlation
+
+print(r_square_partial)
+
+
+
+# Given values
+b1 <- -0.171  # unstandardized estimate for x1
+SD_x1 <- 19.872  # standard deviation of x1
+SD_y <- 10.469  # standard deviation of y
+
+# Calculate the estimated standardized regression coefficient
+beta1 <- b1 * SD_x1 /  SD_y
+
+print(beta1)
+
+
+
+b2 <- -0.404  # unstandardized estimate for LITERACY
+SD_y <- 10.469  # standard deviation of BIRTHS
+SD_x2 <- 17.665  # standard deviation of LITERACY
+
+# Calculate the estimated standardized regression coefficient for x2
+beta2 <- b2 * SD_x2  / SD_y
+
+# Print the result
+print(beta2)
+
+
+
+
+
+
+
+
+```
+ 
+ a) The partial correlation -0.513469 describes the association between y and x1 after controlling for x2. Therefore it is the correlation between the number of births and womens economic activity when holding the literacy rate of a county as constant. There is moderately strong negative assocication between  between the number of births and womens economic activity when holding the literacy rate of a county as constant.
+The partial r2 0.2636504 is the proportion of variation in y (number of births) explained by x1 (economic activity), controlling for the literacy rate (x2)
+ 
+ 
+ The partial r2 is the proportion of variation in y (number of births) explained by x1 (economic activity), controlling for the literacy rate (x2)
+ 
+ 
+ b) 5.410 Root MSE (Std. Error of the Estimate) 5.410 suggests that, on average, the observed birth rates deviate from the predicted values by approximately 5.410 units. This measure provides an indication of the spread or variability of the actual values around the predicted values in the regression model.
+ 
+ c) The estimated standardized regression coefficient b1 represents the change in the dependent variable Economic Activiy in standard deviation units for a one standard deviation change in the independent variable. If economic activity increases by one standard deviation, the birth rate decreases by -0.324588 standard deviation
+ 
+ d) 'Z_y = B1*Z_econ + B2 *Z_literary = -0.324588*Z_econ -0.6816945*Z_literary'
+ 
+ The predicted standardized birth rate rate Z_y decreases by 0.33 standard deviations for an increase of one standard deviations in the economic activity. Z_y also decreases by 0.68 standard deviations for an increase of one standard deviations in the literacy rate. 
+ 
+```{r}
+Z_y = -0.324588*1 -0.6816945*1
+
+print(Z_y)
+ 
+```
+
+
+e) The predicted Z score for a country that is one standard deviation above the mean on both explanatory variables is -1.006282. Therefore in countries that are one standard deviation above the mean on both explanatory, on average, the number of births per 1000 population is expected to be one standard deviation lower (-10.5) than its mean (22.117).
+
+
+
+### 12.12
+
+a) The results of the F-tests assess the significance of the variables (Gender and Race) in explaining the variation in the ideal number of kids for a family. For Gender, the F-statistic tests the null hypothesis that there is no significant difference in the mean ideal number of kids between genders. Since the p-value (0.550) relatively large, you would fail to reject the null hypothesis. There is not enough evidence to suggest a significant difference in the mean ideal number of kids between genders. For race, the F-statistic tests the null hypothesis that there is no significant difference in the mean ideal number of kids between races. The small p-value (0.000) indicates strong evidence to reject the null hypothesis. There is significant evidence to suggest a difference in the mean ideal number of kids between races.
+
+
+b) 
+```{r}
+# Given coefficients
+intercept <- 2.42
+coeff_s <- 0.04
+coeff_r <- 0.37
+
+# Calculate estimated means
+female_white_mean <- intercept + coeff_s * 1 + coeff_r * 0
+female_black_mean <- intercept + coeff_s * 1 + coeff_r * 1
+male_white_mean <- intercept + coeff_s * 0 + coeff_r * 0
+male_black_mean <- intercept + coeff_s * 0 + coeff_r * 1
+
+print(female_white_mean)
+print(female_black_mean)
+print(male_white_mean)
+print(male_black_mean)
+
+
+```
+
+This model satisfies "no interaction" because the effect of s (gender) on 
+y is the same regardless of the value of r (race), and vice versa. The impact of gender on the estimated mean is consistent across different races, and the impact of race on the estimated mean is consistent across different genders.
+
+
+
+### 12.40
+
+C is correct 
+
+### 13.10
+
+a) To what extend does the effect of registered voters on voting dependent on the racial-ethnic representation of a precinct?
+
+b) y_hat = −2.7786 + 0.7400×REGISTER− 1.3106×RACE_a − 2.8522×RACE_b.
+The estimated intercept represents the predicted percentage of adults voting when Register is zero and Mexian American have the strongest representation in a precinct. The intercept captures the baseline value as Mexican American as the racial–ethnic representation of a precinct .For every one-unit increase in the percentage of adults registered to vote, the predicted percentage of adults voting is expected to increase by 0.7400, assuming racial–ethnic representation remains constant.For precincts where the strongest racial–ethnic representation is Anglo (RACE_a), the predicted percentage of adults voting is expected to decrease by 1.3106 compared to the baseline (Mexican Americans), holding other variables constant. For precincts where the strongest racial–ethnic representation is black (RACE_b), the predicted percentage of adults voting is expected to decrease by 2.8522 compared to the baseline, holding other variables constant.
+
+c) y_hat = −8.245 + 0.878×REGISTER + 6.974×RACE_a + 9.804×RACE_b − 0.175×REGISTER×RACE_a − 0.283×REGISTER×RACE_b. The estimated intercept represents the predicted percentage of adults voting when Register is zero and Mexian American have the strongest representation in a precinct.The intercept captures the baseline value as Mexican American as the racial–ethnic representation of a precinct. For every one-unit increase in the percentage of adults registered to vote, the predicted percentage of adults voting is expected to increase by 0.878 for Mexican Americans - as this is the baseline.  For precincts where the strongest racial–ethnic representation is Anglo (RACE_a), the intercept −8.245 increases by by 6.974 compared to the baseline, holding other variables constant. For precincts where the strongest racial–ethnic representation is black (RACE_b), the intercept −8.245 increases by 9.804 compared to the baseline, holding other variables constant. The interaction term represents how the effect of voter registration on the predicted percentage of adults voting differs when racial–ethnic representation is Mexican American. The influence of Register on the percentage of people voting increases for Anglo by 0.175 and decreases for black people by 0.283.
+
+
+d) F=  27.89 / 18.217 =  1.47. The corresponding p value is .243. The F-statistic tests the null hypothesis that the regression lines for the three categories have the same slope. The p-value associated with the F-statistic indicates the probability of observing such a F-statistic if the null hypothesis is true. We can therefore conclude that there is a 24.3 % probability to observe such results assuming that the regression lines for the three categories have the same slope. Therefore we can not reject the null hypothesis, and conclude that the regression lines for the three categories are likely to have the same slope. 
+
+
+e) F = 1.07 with the corresponding p value of .354. The F-statistic tests the null hypothesis that the mean voting percentages are equal for the three categories of racial–ethnic representation, controlling for percentage registered. The p-value associated with the F-statistic indicates the probability of observing such a F-statistic if the null hypothesis is true. We can therefore conclude that there is a 35.4 % probability to observe such results assuming that the mean voting percentages are equal for the three categories of racial–ethnic representation. Therefore we can not reject the null hypothesis, and conclude that the mean voting percentages are likely to be equal for the three categories of racial–ethnic representation, controlling for percentage registered.
+
+
+f) F = 123.93 with a p value of 0.000. The F-statistic tests the null hypothesis that percentage voting and percentage registered are independent, controlling for racial–ethnic representation. The p-value associated with the F-statistic indicates the probability of observing such a F-statistic if the null hypothesis is true. We can therefore conclude that there is a 0 % probability to observe such results assuming that percentage voting and percentage registered are independent, controlling for racial–ethnic representation.. Therefore we can reject the null hypothesis, and conclude that the percentage voting and percentage registered are not independent, controlling for racial–ethnic representation.
+
+g) Since we know that there is a 24.3 % probability to observe such results assuming that the regression lines for the three categories have the same slope. We can  conclude that the regression lines for the three categories are likely to have the same slope. Consequently the effect of registered voters on voting does not seem to dependent on the racial-ethnic representation of a precinct. 
+
+
+### 15.9
+
+a) Husband’s earnings ($10,000)
+
+b) For each additional 10,000 dollar increase in husband's income, the log-odds of owning a home increase by 0.569. Additionally,  for each additional 10,000 dollar increase in wife's income, the log-odds of owning a home increase by 0.306.
+On average, a 10,000 dollar increase in husband's income is associated with a 76.6% higher likelihood of young married households owning a home, as indicated by the factor of approximately e^0.569 = 1.766. Holding all other variables constant, each unit increase in husband's income corresponds to a 76.6% increase in the probability of home ownership. Similarly, a 10,000 dolalr increase in wife's income, on average, results in a 35.7% higher chance of owning a home for young married households, denoted by the factor of approximately e^0.306=1.357. When keeping all other variables constant, a one-unit increase in wife's income is linked to a 35.7% rise in the probability of owning a home.
+
+c) 
+
+```{r}
+# Given coefficients
+beta <- c(-2.870, 0.569, 0.306, -0.039, 0.224, 0.373, 0.220, 0.271, -0.027, 0.387)
+
+# Given values
+husband_earnings_1 <- 2
+husband_earnings_2 <- 10
+wife_earnings <- 5
+years_married <- 3
+married_in_two_years <- 0
+working_wife_in_two_years <- 1
+num_children <- 0
+additional_child_in_two_years <- 0
+education <- 16
+parents_home_ownership <- 0
+
+logit_1 <- sum(c(1, husband_earnings_1, wife_earnings, years_married, married_in_two_years,
+                 working_wife_in_two_years, num_children, additional_child_in_two_years,
+                 education, parents_home_ownership) * beta)
+
+logit_2 <- sum(c(1, husband_earnings_2, wife_earnings, years_married, married_in_two_years,
+                 working_wife_in_two_years, num_children, additional_child_in_two_years,
+                 education, parents_home_ownership) * beta)
+
+
+logit2prob <- function(logit){
+  odds <- exp(logit)
+  prob <- odds / (1 + odds)
+  return(prob)
+}
+
+print(logit2prob(logit_1))
+
+print(logit2prob(logit_2))
+
+
+
+
+```
+
+Keeping all factors as specified as before, a man with a salary of 100.000 has a 98.48 % chance to own a home whereas a man with a salary of 20.000 has only 40.66 percent chance to own a home
+
+### 15.10
+
+a) Log-odds of marijuana use = −5.309+2.986×ALCOHOL+2.848×CIGARETT
+The positive coefficient for ALCOHOL (yes) suggests that individuals who use alcohol  are expected to have higher log-odds of marijuana use compared to those who do not use alcohol. Likewise, he positive coefficient for CIGARETT indicates that individuals who use cigarettes  are expected to have higher log-odds of marijuana use compared to those who do not use cigarettes 
+
+b) The estimates for the second category of each explanatory variable are equal to 0 because the logistic regression model uses binary coding for categorical variables, and the reference category is chosen as the baseline for comparison.Therefore, the estimates for the baseline category are set to 0 in the output.
+
+
+## Part 2 
+
+### A 
+
+```{r}
+
+library(forecast)
+library(datasets)
+
+plot(nhtemp)
+
+
+### Assessing the correlogram
+
+acf(nhtemp)
+pacf(nhtemp)
+
+## the data does not seem stationed 
+
+model_matrix.aic<-matrix(0,5,5)
+
+for (i in 0:4) for (j in 0:4) {
+model.fit<-arima(nhtemp, order=c(i,0,j))
+model_matrix.aic[i+1,j+1]<-model.fit$aic }
+
+model_matrix.aic
+
+fitted_model <- arima(nhtemp, order=c(2,0,2))
+
+fitted_model
+
+p <- fitted_model$arma[1]
+q <- fitted_model$arma[2]
+
+# Get the parameter estimates
+parameters_optimal <- coef(fitted_model)
+
+# Get the AIC value of the optimal model
+aic_value <- AIC(fitted_model)
+
+# Print the results
+print(p)
+print(q)
+
+print(parameters_optimal)
+
+print(aic_value)
+```
+
+We find that the optimal values (the one with the lowest AIC value of 191.3824) for p is = 2 and for q = 2 with the parameter ar1 (-0.1113497) ar2 (0.8878479) ma1( 0.3576957 ) (-0.6254188) ma2  intercept (51.1881849). 
+
+
+```{r}
+
+differenced_data <- diff(nhtemp)
+
+plot(differenced_data)
+
+acf(differenced_data)
+pacf(differenced_data)
+
+
+model_differenced_matrix.aic<-matrix(0,5,5)
+
+for (i in 0:4) for (j in 0:4) {
+model_differenced.fit<-arima(differenced_data, order=c(i,0,j))
+model_differenced_matrix.aic[i+1,j+1]<-model_differenced.fit$aic }
+
+model_differenced_matrix.aic
+
+fitted_differenced_model <- arima(differenced_data, order=c(2,0,2))
+
+fitted_differenced_model
+
+
+p_differenced <- fitted_differenced_model$arma[1]
+q_differenced<- fitted_differenced_model$arma[2]
+
+# Get the parameter estimates
+parameters_optimal_differenced <- coef(fitted_differenced_model)
+
+# Get the AIC value of the optimal model
+aic_value_differenced <- AIC(fitted_differenced_model)
+
+# Print the results
+print(p_differenced)
+print(q_differenced)
+
+print(parameters_optimal_differenced)
+
+print(aic_value_differenced)
+
+```
+
+After differencing, we find that the optimal values (the one with the lowest AIC value of 187.1279) for p is = 2 and for q = 2 with the  ar1(-0.768296675),ar2 (0.231530922), ma1(-0.006522517), ma2( -0.993467875), intercept(0.036580406). As we already saw, the data was not fully stationary, which explains why the differenced model has a lower AIC and therefore is the better performing model. 
+
+
+### B
+
+```{r}
+
+library(tseries)
+
+data_passangers <- AirPassengers
+ts_data <- ts(AirPassengers, frequency = 12)
+
+optimal_model <- auto.arima(ts_data)
+
+optimal_model
+
+forecast_horizon <- 12
+
+forecast_values <- forecast(optimal_model, h = forecast_horizon)
+
+
+plot(forecast_values, main = "Forecasted Values", xlab = "Time", ylab = "Passengers")
+
+```
+
+
+In the first predicition I have used the auto.arima function from the forecast package to automatically identify and fit the optimal ARIMA model for the passenger time series data. This function employs a comprehensive search over a range of model configurations, selecting the one with the lowest Akaike Information Criterion (AIC), which balances model accuracy with complexity. Therefore it is important to note, when only AIC is concerned, one should look for the AIC as demonstrated before.  The optimal ARIMA model identified for the time series ts_data is ARIMA(2,1,1)(0,1,0)[12]. The non-seasonal component (ARIMA(2,1,1)) includes two autoregressive terms, incorporates one differencing to achieve stationarity, and involves one moving average term. In the seasonal component (0,1,0)[12], there are no seasonal autoregressive terms, seasonal differencing is applied once, and there are no seasonal moving average terms with a seasonal period of 12 months. The estimated coefficients for the autoregressive terms (ar1 and ar2) are 0.5960 and 0.2143, respectively, while the coefficient for the moving average term (ma1) is -0.9819.
+Subsequently, a forecast horizon of 12 periods into the future is set, and the forecast function is applied to generate forecasts (forecast_values) based on the learned model parameters. The printed output includes point forecasts and prediction intervals. 
+
+```{r}
+
+exp_smooth_model <- ets(ts_data)
+
+
+exp_smooth_model
+
+forecast_horizon <- 12
+
+forecast_values_2 <- forecast(exp_smooth_model, h = forecast_horizon)
+
+
+plot(forecast_values, main = "Exponential Smoothing Forecast", xlab = "Time", ylab = "Passengers")
+```
+
+
+In comparion, in the second forecasting I have applied the ets function which uses the exponential smoothing state space model. The function takes the monthly Airline Passengers data, represented as a time series, as its input. The ets function automatically selects the best-fitting model from the ETS (Error, Trend, Seasonality) class, which encompasses a range of exponential smoothing methods. This class includes three main components: error term (E), trend component (T), and seasonality component (S). The ETS (Error, Trend, Seasonality) model utilizes smoothing parameters to govern the model's behavior. The α (alpha) parameter, set at 0.7096, controls the level smoothing, determining the weight given to the most recent observation. The β (beta) parameter, with a value of 0.0204, governs trend smoothing, indicating the weight assigned to the most recent trend observation. The γ (gamma) parameter, set at 1e-04, influences the seasonality smoothing, determining the weight given to the most recent seasonal observation. The φ (phi) parameter, configured at 0.98, introduces damping to the trend, affecting the decay rate of the trend over time. The function identifies the optimal combination of these components (e.g., additive or multiplicative error, trend, and seasonality) through a likelihood-based approach. The resulting model is then used to generate forecasts for the specified horizon.

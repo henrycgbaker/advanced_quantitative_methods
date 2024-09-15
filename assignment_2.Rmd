@@ -1,0 +1,61 @@
+---
+title: "assignment_2"
+author: "Henry Baker"
+date: "2024-09-13"
+output: 
+  html_document:
+    toc: TRUE
+    df_print: paged
+    number_sections: FALSE
+    highlight: tango
+    theme: lumen
+    toc_depth: 3
+    toc_float: true
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(warning = FALSE)
+
+library(ggplot2)
+library(lme4)
+library(dplyr)
+library(countrycode)
+library(stargazer)
+library(forecast)
+```
+
+
+## Data Preprocessing 
+
+```{r, fig.width=4, fig.height=4}
+
+Wage_Gap_df <- read.csv('Gender_Gap_original.csv', header = TRUE, sep = ',') %>%
+  rename(Country = LOCATION, Employee_status = SUBJECT, Year = TIME, Wage_Gap = Value)%>%
+  select(Country, Employee_status, Year, Wage_Gap)%>%
+  mutate(Employee_status = as.factor(Employee_status))
+
+Wage_Gap_df$Country <- countrycode(Wage_Gap_df$Country, origin = 'iso3c', destination = 'country.name', nomatch = NULL)
+
+```
+
+
+## Chapter 11
+
+### 9.14) 
+
+This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+
+When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+
+```
+```
+
+## Including Plots
+
+You can also embed plots, for example:
+
+```{r pressure, echo=FALSE}
+plot(pressure)
+```
+
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.

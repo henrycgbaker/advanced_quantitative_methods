@@ -1,0 +1,421 @@
+---
+title: "Analysing the deterministic patterns of Wage Gaps"
+author: "Finn_Krüger - 204259"
+date: "2023-11-09"
+header-includes:
+   - \usepackage{float}
+   - \usepackage{lipsum}
+output:
+  pdf_document:
+    toc: yes
+    toc_depth: '3'
+  html_document:
+    toc: yes
+    df_print: paged
+    number_sections: no
+    highlight: tango
+    theme: lumen
+    toc_depth: 3
+    toc_float: yes
+    
+---
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(warning = FALSE)
+
+library(ggplot2)
+library(lme4)
+library(dplyr)
+library(countrycode)
+library(stargazer)
+library(forecast)
+```
+
+
+## Data Preprocessing 
+
+```{r, fig.width=4, fig.height=4}
+
+Wage_Gap_df <- read.csv('Gender_Gap_original.csv', header = TRUE, sep = ',') %>%
+  rename(Country = LOCATION, Employee_status = SUBJECT, Year = TIME, Wage_Gap = Value)%>%
+  select(Country, Employee_status, Year, Wage_Gap)%>%
+  mutate(Employee_status = as.factor(Employee_status))
+
+Wage_Gap_df$Country <- countrycode(Wage_Gap_df$Country, origin = 'iso3c', destination = 'country.name', nomatch = NULL)
+
+```
+## Descriptives 
+
+```{r}
+summary(Wage_Gap_df)
+
+unique(Wage_Gap_df$Country)
+
+```
+
+The summary statistics for the Wage Gap dataframe reveal key insights into the distribution of gender wage gap data across 1344 observations. The dataset comprises a diverse set of 45 countries, ranging from Australia and Austria to Brazil and beyond. Additionally, the dataset has average entries for the OECD and the 27 European countries. The majority of entries are related to employees, accounting for 864 instances, with the remaining 480 instances corresponding to self-employed individuals. The temporal scope of the dataset spans from 1970 to 2022. One can see how half of the observations are only starting at 2010. The summary unveils a wide range of wage gap values, with a minimum of -53.28%, indicating instances where female workers may out-earn their male counterparts, and a maximum of 63.20%, highlighting substantial gender pay disparities. The first and second quartiles provide additional context, showing that a significant portion of the data falls within the range of 12.30% to 30.95%, underlining the prevalence of gender wage gaps across different countries and employment statuses. 
+
+
+```{r, fig.width=7, fig.height=5}
+ggplot(Wage_Gap_df, aes(x = Year, y = Wage_Gap, color = Employee_status)) +
+  geom_point(size = 0.8) +
+  labs(x = "Year", y = "Gender Wage Gap (%)", title = "Gender Wage Gap Over Time") +
+  scale_color_manual(values = c("EMPLOYEE" = "blue", "SELFEMPLOYED" = "red")) +
+  theme_minimal()
+```
+
+
+To get a first impression of the data, we plot how the wage gap has developed over time for employees as well as the self-employed. Particularly for the self employed, one can see that most of the data has only been recorded since 2000. Additionally, we can observe that the wage gap seems to be substantially higher for self-employed workers in comparison to their peers. In the plot, it is hard to see the trend of the wage gap over time, as many data points are clustered together. To better understand the trend one has to look at the wage gap difference for each country seperately. 
+
+
+### Employee Status
+
+```{r, fig.width=4, fig.height=3}
+ggplot(Wage_Gap_df, aes(x = Employee_status, y = Wage_Gap, fill = Employee_status)) +
+  geom_boxplot(width = 0.7, outlier.shape = NA) +
+  stat_summary(fun=median, geom="point", shape=23, size=3, fill="white", color="black", position=position_dodge(width=0.75)) +
+  stat_summary(fun=median, geom="text", aes(label=sprintf("%.2f", ..y..)), vjust=-0.5, position=position_dodge(width=0.75)) +
+  labs(x = "Employee Status", y = "Gender Wage Gap (%)", title = "Gender Wage Gap Comparison") +
+  scale_fill_manual(values = c("EMPLOYEE" = "blue", "SELFEMPLOYED" = "red")) +
+  theme_minimal() +
+  ylim(c(-15, 65))
+
+```
+
+As previously mentioned, the boxplot tells us how stark the wage gap between employees and the self-employed differ. Whereas the median for employees of all countries in the entire time span is 15.95, representing a 15 % higher salary for men in comparison to woman, the median for the self-employed from 1970 to 2020 between all countries and countries is equal to 30.88.
+
+### Development of wage gaps
+```{r, fig.width=12, fig.height=10}
+employee_data <- Wage_Gap_df %>% 
+  filter(Year >= 2002)
+
+employee_plot <- ggplot(employee_data, aes(x = Year, y = Wage_Gap, color = Employee_status)) +
+  geom_line() +
+  facet_wrap(~ Country) +
+  labs(
+    title = "Wage Gap Over Time for Employees and Self-Employed by Country",
+    x = "Year",
+    y = "Wage Gap"
+  ) +
+  theme_minimal() +
+  coord_cartesian(ylim = c(0, 63))
+
+print(employee_plot)
+```
+
+In the facet wrap we can see how the wage gap for the self-employed as well as the employees have developed since 2002 in each country. Based on the Data availability, I have chosen to select 2002 as a base year. There seems to be a clear trend that the wage gaps are decreasing for the self-employed as well as for employees in many countries. One can observe how historically the wage gap has been largely higher for the self employed is comparison to its peers in many countries. However, the wage gap for the self employed seems to be decreasing at a substantially larger rate in many countries in comparison to the wage gap for employees. This makes sense, as one would expect little shifts in the wages determined through working contracts for employees. In some countries the decreasing trend in the wage gaps for the self-employed has accelerated at such high pace, that wage gaps are now higher for employees than for the self-employed (France, Finland as well as Denmark). Even though one can observe that the wage gaps are on average diminishing, they are decreasing at very small rates in most countries, and to a large extend wage gaps between woman and men are still presisting today. Importantl, one can see that the impact of employment status heavilies depends on which country one assesses and therfore in our analysis we will include an interaction of countries and the employment type to see the impact of the employment type on the wage gaps for the different countries. 
+
+## Inference 
+
+As we can clearly see from the data, wage gaps differ in terms of the employee category, in the country they have been witnessed and in the year they have been recorded. Accordingly the inference of this paper will focus on three concrete parts. First this paper will analyse to what extend wage gaps differ between countries, among employee categories and among different decades of the years recorded. Afterwards, this paper will deploy a time series analysis to understand the extend to which past observations can explain as well as predict future wage gaps. 
+
+### Regression 
+
+#### Bivariate Regression and Interaction
+
+First we will run two bivariate regressions where the wage gap will be explained by a) the type of employment and b) the countries of observation. Both of these are categorical predictors. For the regression part we will focus on the countries with the most observations. This has several benefits, some countries such as Turkey only have four observations for wage gaps in our dataset. The more observations a country has, the smaller will be the standard errors of the country coefficients and therefore there is a greater chance that these coefficients will be signifcant, once we compute country as an independent variable to explain the wage gap. Additionally, once we apply an interaction term between the employment status and countries, the regressions will have so many coefficients that it would would take a lot space to print the output of these models. 
+
+All the code below however could perfectly be run on the entire dataset if one would like to. First, we find out which are the countries that have the most observations on recorded wage gaps. The results are in the appendix 
+
+As we can see in the appendix, the countries with the most counts are in the appropriate order United Kingdom, United States, Finland, New Zealand, Japan and Australia. However, Japan and Australia do not have any data on the self-employed. Therefore we will exclude them in the analysis of the interaction terms. We will now filter for these countries and apply our regression analysis to these countries to see what are the best models. 
+
+```{r, fig.width=1000}
+selected_countries <- c("United Kingdom", "United States", "Finland", "New Zealand")
+
+countries_wage_gap <- Wage_Gap_df %>%
+  filter(Country %in% selected_countries)
+
+model_country <- lm(Wage_Gap ~ Country, data = countries_wage_gap)
+
+model_employee_status <- lm(Wage_Gap ~ Employee_status, data = countries_wage_gap)
+
+stargazer(
+  model_employee_status, model_country,
+  title = "Model Comparison",
+  column.labels = c("Employee_status Only", "Country Only"),
+  align = TRUE,
+  type = "text",
+          header=FALSE, # to get rid of r package output text
+          single.row = TRUE, # to put coefficients and standard errors on same line
+          no.space = TRUE, # to remove the spaces after each line of coefficients
+          column.sep.width = "1pt", # to reduce column width
+          font.size = "small" # to make font size smaller
+)
+
+```
+
+
+The examination of two  bivariate regression models offers valuable insights into the determinants of the wage gap within the timeframe of 1970 to 2022 for the selected countries Finland, New Zealand, Uk and the US. The "Employee_only" model isolates the impact of the employee status and shows that on among the countries in the given time frame the average wage gap has for employees has been 22.46, represented by the intercept. The coefficient suggest  that in comparison to employees the the wage gap of the self employed, is significally larger by 13.84 with an average of 36.30 (22.46 + 13.84)
+
+Conversely, the "Country_only" model explores the influence of country-specific factors on the wage gap. The intercept at 23.629 (p<0.01) shows the average wage gap of Finland for the self employed and the employees, showing that men on average earned 23.63 % more than woman from 1990-2022. The intercept represents the baseline wage gap for this model. One can see that the average wage gap of the other countries from 1990-2022 significantly differs from Finland by the corresponding values. New Zealand for example 'only' has a wage gap of 20.15% (23.629 - 3.47) whereas the other countries have a larger wage gap. 
+
+The r square of the models tells us that within this sample of countries in the specified time frame, the employee status can explain 31.5 % of the variation in the wage gap, whereas the country differences can explain 31.5 % of the variation in the wage gap. The adjusted R-squared values, 0.312 and 0.150, respectively, consider the number of predictors in maintaining interpretability. It is crucial to note that these models account for the specified time frame and provide valuable insights into how distinct factors contribute to the evolving nature of the wage gap over the analyzed period.
+
+#### Multivariate Regression
+
+We will now turn to multivariate regression to assesses the simultaneous impact of employee status and countries on wage gaps. As we have seen in the facet wrap, it seems that the impact of employment status heavily depends on which country one assess and therfore we will deploy an interaction model of countries and the employment type to see the impact of the employment type on the wage gaps for the selected countries. 
+
+```{r}
+
+model_both <- lm(Wage_Gap ~ Employee_status + Country, data = countries_wage_gap)
+
+model_interaction <- lm(Wage_Gap ~ Country:Employee_status, data = countries_wage_gap)
+
+stargazer(
+  model_both, model_interaction,
+  title = "Model Comparison",
+  column.labels = c("Country and Employment type", "Interaction Model"),
+  column.separate = c(1,2),
+  align = TRUE,
+  type = "text",
+          header=FALSE, # to get rid of r package output text
+          single.row = TRUE, # to put coefficients and standard errors on same line
+          no.space = TRUE, # to remove the spaces after each line of coefficients
+          column.sep.width = "1pt", # to reduce column width
+          font.size = "small" # to make font size smaller
+
+)
+
+```
+In the regression output we can see the two models that include countries and employment status together. For the first model that assesses the two categorial predictors indepedently the intercept (baseline model) shows the wage gape for the employees of Finland from 1990-2022 being 18.91. The selfemployment coefficient now has a different interpretation as it shows the average increase in the wage gap for the given countries, holding the variation of the wage gap of the countries constant. Accordingly, the selfemployed have on average a 15.98 higher wage gap than the employees, when one holds the country variation constant. Depending on the country and employment status, one would add the coefficients to the intercept to find out the according wage gap. For example, the self employed in the UK would have a predicted wage gap of 18.91 + 8.09 (country coefficient) +  15.98 ( the selfemployment coefficient) = 42.98. For the selfemployed in the UK  in the period between 1990 and 2022 man were on average earning 42.98% income in comparison to woman. We see that all variables in the first model have a p value of lower than 0.01 and therefore are highly significant. 
+
+Instead of having one effect for the employment status as an average for all countries such as in the left model, the interaction model of countries and the employment type allows the impact of the employment type on the wage gaps to vary for all the included countries.The intercept shows that average wag gap in the US for the self employed is equal to 46.376. 
+We can see that the effect of the employment status indeed heavily varies by country, given the different size of their corresponding coefficients and their p values. For example in the US, the effect of the employment status on the wage gap is as large as 20.638 (CountryUnited States:Employee_statusEMPLOYEE) where the employees have a significantly lower wage gap than the self-employed. In other countries, this difference is less severe. Assessing the intercept for the UK for the employed, we see the wage gap is  on average a 28.27 (46.36-18.090) , whereas the wage gap for the selfemployed is 38.192 (46.36-8.168). Therefore, in comparison to the US the difference in wage gap between both employment types is much more severe. We see also see that all variables in the second model have a p value of lower than 0.01 and therefore are highly significant. 
+
+Accordingly, the interaction model is the most appropriate model to assess the effect of  countries and employment status on the size of the wage gap. This is also reflected through the largest r2 being 0.638 in comparison to the regression model that includes country and employment type as seperate independent variables that has a lower r square of 0.567.
+
+The F-statistic is a measure of the overall fit of a regression model and tests the joint significance of all the coefficients in the model. In the presented model comparison, the F-statistic for the "Country and Employment type" model is 81.096 with 4 and 248 degrees of freedom for the numerator and denominator, respectively. For the "Interaction Model," the F-statistic is 61.649 with 7 and 245 degrees of freedom. In both cases, the F-statistic is associated with a very low p-value (p < 0.01), indicating that at least one of the coefficients in the models is significantly different from zero. This suggests that both models provide a statistically significant improvement in explaining the variance in the dependent variable compared to a model with no predictors. 
+
+
+#### T-test for different decades 
+
+
+In the context of wage gaps, economic conditions, government policies, and societal attitudes toward compensation may not change abruptly from one year to the next. Instead, they tend to evolve gradually, leading to a certain degree of continuity in the data. This persistence can be captured by examining how the wage gap at a specific time point is related to its previous values. If a trend is present, the current wage gap is likely to be influenced by the gap in the previous period. Based on the graphs we can see that there wage gap is slowly diminishing over time. Therefore one can not regress the wage gap on the year of the observered wage gap. Since linear regressions assumes that errors are independent and identically distributed (IID) which implies that the error at any given point in time is uncorrelated with errors at other times. However, in the context of time-series data, this assumption is often problematic. Time-series data typically exhibits autocorrelation, meaning that values at one point in time are correlated with values at adjacent points. Disregarding this autocorrelation when it is present can lead to inaccurate statistical inferences and flawed model results. 
+
+However, one can still conduct a t-test to test the mean difference between two time periods to see whether their means are different over different decades in the dataset. 
+
+```{r}
+subset_1970_1980 <- Wage_Gap_df[Wage_Gap_df$Year >= 1970 & Wage_Gap_df$Year < 1980, ]
+subset_1980_1990 <- Wage_Gap_df[Wage_Gap_df$Year >= 1980 & Wage_Gap_df$Year < 1990, ]
+
+t_test_result <- t.test(subset_1970_1980$Wage_Gap, subset_1980_1990$Wage_Gap)
+
+print(t_test_result)
+```
+
+
+The Two-Sample t-test is conducted to compare the wage gaps between two distinct time periods: 1970-1980 and 1980-1990. The results indicate a statistically significant difference in the mean wage gaps between the two periods (t = 2.5674, df = 60.772, p-value = 0.01272). The calculated 95 percent confidence interval for the difference in means ranges from 1.125781 to 9.058545. This suggests that, with 95 percent confidence, the true difference in mean wage gaps between the two time periods falls within this interval. The alternative hypothesis that the true difference in means is not equal to 0 is supported by the results, implying that there is a significant shift in the average wage gap between the two specified time periods. Specifically, the mean wage gap during 1970-1980 is estimated to be 35.73, while during 1980-1990, it is estimated to be 30.63. These findings provide quantitative evidence of a notable change in wage gaps over the examined time intervals. To understand the trend of the data, we will deploy time series analysis models. 
+
+
+
+### Time series analysis 
+
+For our time series analysis we will deploy time-series analysis to predict the wage gap among employees in the United Kingdom and the United states in the next 20 years, based on the available data. In the appendix we see that  First, we will assesses the wage gap for employees of the united states. 
+
+```{r, fig.width=6, fig.height=3}
+## creating time series 
+US_employee <- Wage_Gap_df %>%
+  filter(Employee_status == 'EMPLOYEE' & Country == 'United States') %>%
+  select(Wage_Gap, Year)
+
+library(forecast)
+
+US_employee_ts <- ts(data = US_employee$Wage_Gap, start = 1973, end = 2022, frequency = 1)
+
+plot(US_employee_ts)
+
+```
+
+We see that the data is not stationary, therefore we difference the data and conduct a Augmented Dickey-Fuller Test to see whether our data is stationary afterwards. The test examines the null hypothesis that a unit root is present in a time series, indicating the presence of a stochastic trend or non-stationarity. 
+
+
+```{r, fig.width=6, fig.height=3}
+
+US_employee_ts_differenced <- diff(US_employee_ts)
+
+library(tseries)
+
+adf_test_result <- adf.test(US_employee_ts_differenced)
+print(adf_test_result)
+
+```
+
+The Augmented Dickey-Fuller test was applied to the differenced time series data of US employees. The test statistic was -3.9307 with a lag order of 3, and the corresponding p-value was 0.02. A lag of 3 means that the ADF test is considering the third lag of the differenced series in the regression equation. The lagged values are used to account for any serial correlation or patterns in the data that might affect the stationarity test results. With a p-value below the typical significance level of 0.05, there is evidence to reject the null hypothesis, suggesting that the time series is stationary, supporting the alternative hypothesis
+
+
+```{r, fig.width=5, fig.height=3}
+acf(US_employee_ts_differenced)
+pacf(US_employee_ts_differenced)
+
+```
+
+As evident from the autocorrelation function (ACF) and partial autocorrelation function (PACF), except for 0 (which is itself significant in predicting the next observation), there are no significant past observations. This implies that the current value is not dependent on previous values (AR = 0), and neither is it dependent on the error terms of previous observations (MA = 0). Consequently, we would expect our ARMA model to be (0,1,0) after differencing it once, as previous observations or errors do not play a significant role in determining the current value. Once differenced, the remaining signal appears as white noise without any discernible deterministic pattern based on past values.
+
+
+```{r}
+model_matrix.aic<-matrix(0,7,7)
+
+for (i in 0:6) for (j in 0:6) {
+model.fit<-arima(US_employee_ts_differenced, order=c(i,0,j))
+model_matrix.aic[i+1,j+1]<-model.fit$aic }
+
+print(model_matrix.aic)
+
+model_US <- auto.arima(US_employee_ts) 
+
+print(model_US)
+```
+
+Constructing a matrix to identify the model with the lowest Akaike Information Criterion (AIC), a measure of the goodness of fit for a statistical model, reveals that the configuration with AR = 0 and MA = 0 indeed has the lowest AIC (119.48). This aligns with the observations from the Autocorrelation Function (ACF) and Partial Autocorrelation Function (PACF). Furthermore, the ARIMA estimates are substantiated by the auto.arima function, which automatically selects the best-fitting model with the lowest AIC values.
+
+The AIC, aiming to balance estimated residual error and model complexity, diminishes with decreasing residual variance and increases with growing model complexity. Lower values of AIC and Bayesian Information Criterion (BIC) signify a more favorable trade-off between model goodness of fit and simplicity. While AIC considers both fit and complexity, BIC places a stronger emphasis on penalizing overly complex models. The objective is to find a model that achieves a high fit level while maintaining simplicity, and lower AIC and BIC values suggest a better balance in achieving this goal.
+
+The auto.arima model includes a drift term with a coefficient of -0.4311, indicating a yearly decline of approximately 0.4311 units in the wage gap. The standard error of the drift term is reported as 0.1123.
+
+```{r, fig.width=5, fig.height=3}
+forecast_horizon <- 10
+forecast_values_US <- forecast(model_US, h = forecast_horizon)
+
+autoplot(forecast_values_US) +
+  ggtitle("Forecasted Values US") +
+  xlab("Time") +
+  ylab("Passengers")
+
+
+```
+
+
+The depicted plot showcases the forecasted wage gaps for US employees from 2023 to 2032. The blue line represents the prediction, characterized by a slope of -0.4311, as indicated by the drift term. Our next objective is to project the wage gap for the UK a decade into the future and subsequently compare the two predictions.
+
+```{r}
+UK_employee <- Wage_Gap_df %>%
+  filter(Employee_status == 'EMPLOYEE' & Country == 'United Kingdom') %>%
+  select(Wage_Gap, Year)
+
+UK_employee_ts <- ts(data = UK_employee$Wage_Gap, start = 1973, end = 2022, frequency = 1)
+
+UK_model <- auto.arima(UK_employee_ts)
+
+print(UK_model)
+
+forecast_values_UK <- forecast(UK_model, h = forecast_horizon)
+```
+
+Analyzing the UK time series, the Auto Arima function identifies the variables as ARIMA(0,1,1). Unlike the US model, the UK ARIMA model incorporates a moving average term (ma1) with a coefficient of 0.6478 (with a standard error of 0.0936), signifying the strength of the first-order moving average component and quantifying the impact of past prediction errors on the current observation.
+
+The model also features a drift term with a coefficient of -0.6584, implying an annual decrease of approximately 0.6584 units in the wage gap. The standard error for the drift term is reported as 0.1955. In contrast to the US model, the UK model exhibits an AIC of 128.18, slightly higher than that of the US. This suggests that the US model fits the data slightly better than the UK model.
+
+Rather than plotting the UK prediction alone, we will now visualize the predictions of both countries in the same plot for a comprehensive comparison of how employee wage gaps are expected to evolve over the next ten years in both countries. 
+
+
+```{r, fig.width=10, fig.height=6}
+
+combined_ts_us <- ts(c(US_employee_ts, as.numeric(forecast_values_US$mean)), start = 1973, frequency = 1)
+combined_ts_uk <- ts(c(UK_employee_ts, as.numeric(forecast_values_UK$mean)), start = 1973, frequency = 1)
+
+plot_data <- data.frame(
+  Index = c(time(US_employee_ts), time(forecast_values_US) + 2022),
+  Wage_Gap = c(US_employee_ts, forecast_values_US$mean),
+  Country = rep("US", length(US_employee_ts) + length(forecast_values_US)),
+  Prediction = c(rep(FALSE, length(US_employee_ts)), rep(TRUE, length(forecast_values_US)))
+)
+
+plot_data <- rbind(
+  plot_data,
+  data.frame(
+    Index = c(time(UK_employee_ts), time(forecast_values_UK) + 2022),
+    Wage_Gap = c(UK_employee_ts, forecast_values_UK$mean),
+    Country = rep("UK", length(UK_employee_ts) + length(forecast_values_UK)),
+    Prediction = c(rep(FALSE, length(UK_employee_ts)), rep(TRUE, length(forecast_values_UK)))
+  )
+)
+
+ggplot(plot_data, aes(x = Index, y = Wage_Gap, color = Country, linetype = Prediction)) +
+  geom_line(size = 1) +
+  scale_y_continuous(limits = c(0, max(c(max(combined_ts_us), max(combined_ts_uk)))),
+                     breaks = c(5, 10, 12, 14, 16,20, 30, 40)) +
+  labs(title = "Predicting the Wage Gap for UK and the US",
+       x = "Year", y = "Wage Gap") +
+  theme_minimal() +
+  theme(panel.grid.major = element_line(color = "lightgray", linetype = 3),
+        panel.grid.minor = element_line(color = "lightgray", linetype = 3)) +
+  theme_minimal()
+
+```
+
+
+The concluding visual displays wage gaps and predictions for the next decade in the United Kingdom and the United States. Dashed lines signify predictions generated by Arima models. Notably, the UK exhibits a steeper average decline in the wage gap compared to the United States, reflecting higher negative drift coefficients. Projections suggest the UK's employee wage gap will decrease from 16.1 in 2022 to 9.67 in 2032, while the corresponding values for the United States are expected to decrease from 16.7 in 2022 to 12.67 in 2032.
+
+## Apendix
+
+```{r}
+Wage_Gap_df %>%
+  filter(Employee_status == 'SELFEMPLOYED')%>%
+  group_by(Country)%>%
+  summarize(Count = n())%>%
+  arrange(desc(Count))%>%
+  head()
+
+Wage_Gap_df %>%
+  filter(Employee_status == 'EMPLOYEE')%>%
+  group_by(Country)%>%
+  summarize(Count = n())%>%
+  arrange(desc(Count))%>%
+  head()
+
+
+#
+
+```
+
+### Data availability
+
+
+```{r, fig.width=12, fig.height=10}
+
+Wage_Gap_df$Country <- factor(Wage_Gap_df$Country, levels = unique(Wage_Gap_df$Country[order(Wage_Gap_df$Country)]))
+
+
+only_employees <- Wage_Gap_df %>%
+  filter(Employee_status == 'EMPLOYEE')
+
+only_selfemployed <-Wage_Gap_df %>%
+  filter(Employee_status == 'SELFEMPLOYED')
+
+# Create the plot with reordered y-axis
+ggplot(only_employees, aes(x = Year, y = reorder(Country, -as.numeric(Country)),)) +
+  geom_point(color = 'black', size = 3, shape = 4) + 
+  labs(x = "Year", y = "Country", title = "Data availability per Country", subtitle = 'Employees') +
+  theme_bw() +
+  theme(
+    plot.title = element_text(size = 14, face = "bold"),
+    axis.title.x = element_text(size = 12),
+    axis.title.y = element_text(size = 8),
+    axis.text = element_text(size = 10),
+    axis.text.x = element_text(angle = 45, hjust = 1),
+    panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank(),
+  )
+
+# Create the plot with reordered y-axis
+ggplot(only_selfemployed, aes(x = Year, y = reorder(Country, -as.numeric(Country)),)) +
+  geom_point(color = 'black', size = 3, shape = 4) + 
+  labs(x = "Year", y = "Country", title = "Data availability per Country", subtitle = 'Selfemployed') +
+  theme_bw() +
+  theme(
+    plot.title = element_text(size = 14, face = "bold"),
+    axis.title.x = element_text(size = 12),
+    axis.title.y = element_text(size = 12),
+    axis.text = element_text(size = 10),
+    axis.text.x = element_text(angle = 45, hjust = 1),
+    panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank(),
+  )
+
+
+
+
+```
+The graphs shows that most countries do not have data on the wage gap between men and women from 1970 to 2020. Actually data on the wage gap is only available for most countries from 2002 onwards for the employees, though, even after 2002 there are still many missing values afterwards. For the selfemployed, the dataset only contains data for 29 countries. For most countries, the dataset only contains entries after 2005 for the selfemployed, however with less missing values for the 29 countries.
+
